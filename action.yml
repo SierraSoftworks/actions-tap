@@ -91,8 +91,9 @@ inputs:
     required: false
     description: |
       Token used to read the source repository's metadata (description,
-      homepage, license). Pass `${{ github.token }}` to avoid unauthenticated
-      rate limits. Defaults to the `GITHUB_TOKEN` environment variable if set.
+      homepage, license). Pass the workflow's github.token to avoid
+      unauthenticated rate limits. Defaults to the GITHUB_TOKEN environment
+      variable if set.
 
 outputs:
   formula:
