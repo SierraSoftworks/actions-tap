@@ -119,6 +119,23 @@ describe('renderFormula / parseFormula round-trip', () => {
     )
     expect(rendered).not.toContain('license')
   })
+
+  it('renders a keg-only versioned alias with the right class name', () => {
+    const rendered = renderFormula(
+      { ...META, name: 'git-tool@3', kegOnly: true },
+      allEntries()
+    )
+    expect(rendered).toContain('class GitToolAT3 < Formula')
+    expect(rendered).toContain('keg_only :versioned_formula')
+  })
+
+  it('camelises a minor-version alias name', () => {
+    const rendered = renderFormula(
+      { ...META, name: 'git-tool@3.11', kegOnly: true },
+      allEntries()
+    )
+    expect(rendered).toContain('class GitToolAT311 < Formula')
+  })
 })
 
 describe('mergeEntries (incremental, idempotent)', () => {

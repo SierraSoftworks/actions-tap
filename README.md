@@ -22,35 +22,57 @@ convention `{app}-{os}-{arch}` (`os` ∈ `darwin`/`linux`, `arch` ∈
    description, homepage, and license unless overridden) and commits it via the
    GitHub Contents API.
 
-Updates are **idempotent and incremental**: each platform updates only its own
-block in the formula, guarded by a `# tap:{os}-{arch}` marker, so the action can
-be called once per release-build matrix job. Concurrent writes are reconciled
-with an optimistic-concurrency retry, so the jobs converge on a complete formula
-without any ordering or barrier.
+By default the action runs **once, after all artifacts are uploaded**: it scans
+every supported platform, downloads whatever is published, and writes the
+complete formula in a single commit, so the tap never holds a partially-built
+formula. (An incremental per-platform mode is also available — see below.)
 
 ## Usage
 
-Add a step to each platform build in your release workflow, right after you
-upload the artifact:
+Add a single job that runs after your build matrix completes:
 
 ```yaml
-- uses: SierraSoftworks/actions-tap@v1
-  with:
-    app-id: ${{ secrets.TAP_APP_ID }}
-    private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    os: ${{ matrix.os }}
-    arch: ${{ matrix.arch }}
+jobs:
+  # …your existing build matrix that uploads {app}-{os}-{arch} assets…
+
+  tap:
+    name: Update Homebrew Tap
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: SierraSoftworks/actions-tap@v1
+        with:
+          app-id: ${{ secrets.TAP_APP_ID }}
+          private-key: ${{ secrets.TAP_APP_PRIVATE_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          aliases: major minor
 ```
 
-`github-token` is optional but recommended — it authenticates the read of the
-source repository's description/homepage/license, avoiding the unauthenticated
-GitHub API rate limit (HTTP 403) on shared runners.
+`github-token` is recommended — it authenticates the read of the source
+repository's description/homepage/license, avoiding the unauthenticated GitHub
+API rate limit (HTTP 403) on shared runners.
 
-`windows` jobs are skipped automatically, so the step can be added uniformly to
-every matrix entry. Omitting `os`/`arch` instead scans every supported platform
-and updates whichever assets are already published — handy for a single
-post-build call.
+`aliases` is optional; `major minor` additionally publishes keg-only versioned
+formulae (e.g. `name@3` and `name@3.11`) so users can pin a series.
+
+### Versioned aliases
+
+For a `3.11.4` release with `aliases: major minor`, the action writes:
+
+- `Formula/name.rb` — the latest release (`brew install …/name`)
+- `Formula/name@3.rb` — latest within the `3.x` series, keg-only
+- `Formula/name@3.11.rb` — latest within the `3.11.x` series, keg-only
+
+Aliases are `keg_only :versioned_formula` so they install alongside the
+unversioned formula without link conflicts.
+
+### Incremental per-platform mode
+
+Passing `os`/`arch` (e.g. `${{ matrix.os }}`/`${{ matrix.arch }}`) updates only
+that platform's block, guarded by a `# tap:{os}-{arch}` marker, with an
+optimistic-concurrency retry so concurrent matrix jobs converge. This trades the
+single-commit guarantee for earlier updates; the fan-in job above is preferred.
+`windows` is always skipped.
 
 ### Inputs
 
@@ -64,7 +86,8 @@ post-build call.
 | `binary`       | no       | `name`                         | Installed binary name.                          |
 | `repository`   | no       | current repo                   | `owner/repo` the release lives in.              |
 | `tag`          | no       | release/ref tag                | Release tag; version is the tag minus `v`.      |
-| `os` / `arch`  | no       | all platforms                  | Restrict to a single platform.                  |
+| `os` / `arch`  | no       | all platforms                  | Restrict to a single platform (incremental).    |
+| `aliases`      | no       |                                | `major`/`minor` versioned aliases to publish.   |
 | `desc`         | no       | repo description               | Formula description.                            |
 | `homepage`     | no       | repo homepage                  | Formula homepage.                               |
 | `license`      | no       | repo license                   | SPDX license id.                                |

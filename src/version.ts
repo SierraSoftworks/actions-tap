@@ -35,3 +35,19 @@ function getRefTag(): string | undefined {
 export function versionFromTag(tag: string): string {
   return tag.replace(/^v/, '')
 }
+
+/**
+ * Derive the major (`3`) and minor (`3.11`) series identifiers from a version,
+ * used to name versioned alias formulae (`name@3`, `name@3.11`). A segment is
+ * only returned when the version actually has it.
+ */
+export function versionSeries(version: string): {
+  major?: string
+  minor?: string
+} {
+  const segments = version.split('.')
+  const major = segments[0] || undefined
+  const minor =
+    segments.length >= 2 && major ? `${major}.${segments[1]}` : undefined
+  return { major, minor }
+}

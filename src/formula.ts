@@ -30,6 +30,9 @@ export interface FormulaMetadata {
   desc: string
   homepage?: string
   license?: string
+  // Versioned alias formulae (e.g. `git-tool@3`) are keg-only so they can
+  // coexist with the unversioned formula without link conflicts.
+  kegOnly?: boolean
 }
 
 /**
@@ -171,6 +174,9 @@ export function renderFormula(
   lines.push(`  version "${meta.version}"`)
   if (meta.license) {
     lines.push(`  license "${meta.license}"`)
+  }
+  if (meta.kegOnly) {
+    lines.push('  keg_only :versioned_formula')
   }
   lines.push('')
 

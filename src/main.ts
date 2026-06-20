@@ -8,11 +8,52 @@ import { mergeEntries, parseFormula, renderFormula } from './formula.js'
 import type { FormulaMetadata, PlatformEntry } from './formula.js'
 import { ALL_PLATFORMS, platformKey } from './platforms.js'
 import type { Arch, Os, Platform } from './platforms.js'
-import { updateFormula } from './tap.js'
+import { readFormula, updateFormula } from './tap.js'
 import type { TapRepo } from './tap.js'
-import { getReleaseTag, versionFromTag } from './version.js'
+import { getReleaseTag, versionFromTag, versionSeries } from './version.js'
 
 const SUPPORTED_OS: readonly string[] = ['darwin', 'linux']
+
+interface FormulaTarget {
+  formula: string
+  kegOnly: boolean
+}
+
+/**
+ * Resolve the set of formulae to publish: always the unversioned `name`, plus
+ * any major/minor versioned aliases requested via the `aliases` input (e.g.
+ * `name@3`, `name@3.11`). Versioned aliases are keg-only so they can coexist
+ * with the unversioned formula.
+ */
+function resolveFormulaTargets(name: string, version: string): FormulaTarget[] {
+  const requested = new Set(
+    core
+      .getInput('aliases')
+      .split(/[\s,]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  const targets: FormulaTarget[] = [{ formula: name, kegOnly: false }]
+  if (requested.size === 0) {
+    return targets
+  }
+
+  const { major, minor } = versionSeries(version)
+  const unknown = [...requested].filter((a) => a !== 'major' && a !== 'minor')
+  if (unknown.length) {
+    throw new Error(
+      `Unknown alias(es): ${unknown.join(', ')}. Supported: major, minor.`
+    )
+  }
+  if (requested.has('major') && major) {
+    targets.push({ formula: `${name}@${major}`, kegOnly: true })
+  }
+  if (requested.has('minor') && minor) {
+    targets.push({ formula: `${name}@${minor}`, kegOnly: true })
+  }
+  return targets
+}
 
 function parseRepo(slug: string): { owner: string; repo: string } {
   const [owner, repo] = slug.split('/')
@@ -68,13 +109,13 @@ export async function run(): Promise<void> {
       `Publishing ${name} ${version} (tag ${tag}) from ${source.owner}/${source.repo}`
     )
 
-    const targets = resolveTargets()
-    if (targets === null) {
+    const platformTargets = resolveTargets()
+    if (platformTargets === null) {
       return
     }
 
     const updates = new Map<string, PlatformEntry>()
-    for (const platform of targets) {
+    for (const platform of platformTargets) {
       const entry = await resolvePlatform(source, tag, name, platform)
       if (entry) {
         updates.set(platformKey(platform), entry)
@@ -112,49 +153,66 @@ export async function run(): Promise<void> {
       tap.repo
     )
 
-    const path = `${formulaDir}/${name}.rb`
     const platformList = [...updates.keys()].sort().join(', ')
-    const message = `${name}: ${version} (${platformList})`
+    const basePath = `${formulaDir}/${name}.rb`
 
-    const result = await updateFormula(
-      octokit,
-      tap,
-      path,
-      message,
-      (current) => {
-        const existing = current ? parseFormula(current) : null
-
-        // Prefer freshly-resolved metadata, but fall back to whatever the tap
-        // already records so an unavailable metadata read (e.g. a rate-limited
-        // 403) never blocks an otherwise-valid update.
-        const desc = metadata.desc || existing?.desc
-        if (!desc) {
-          throw new Error(
-            `No usable description for ${name}. Pass \`github-token\` so the ` +
-              'source repository description can be read, or set `desc`.'
-          )
-        }
-        const meta: FormulaMetadata = {
-          name,
-          binary,
-          version,
-          desc,
-          homepage:
-            metadata.homepage ||
-            existing?.homepage ||
-            `https://github.com/${source.owner}/${source.repo}`,
-          license: metadata.license || existing?.license
-        }
-
-        const merged = mergeEntries(existing, version, updates)
-        return renderFormula(meta, merged)
-      }
+    // Resolve the formula metadata once, falling back to whatever the tap's
+    // unversioned formula already records so a missing metadata read (e.g. a
+    // rate-limited 403) never blocks an update. These values are shared by the
+    // unversioned formula and every versioned alias.
+    const baseExisting = parseFormula(
+      (await readFormula(octokit, tap, basePath)) || ''
     )
+    const desc = metadata.desc || baseExisting.desc
+    if (!desc) {
+      throw new Error(
+        `No usable description for ${name}. Pass \`github-token\` so the ` +
+          'source repository description can be read, or set `desc`.'
+      )
+    }
+    const homepage =
+      metadata.homepage ||
+      baseExisting.homepage ||
+      `https://github.com/${source.owner}/${source.repo}`
+    const license = metadata.license || baseExisting.license
 
-    core.setOutput('formula', path)
+    // The unversioned formula plus any requested major/minor aliases.
+    const formulaTargets = resolveFormulaTargets(name, version)
+    const written: string[] = []
+    let anyUpdated = false
+
+    for (const target of formulaTargets) {
+      const path = `${formulaDir}/${target.formula}.rb`
+      const message = `${target.formula}: ${version} (${platformList})`
+      const result = await updateFormula(
+        octokit,
+        tap,
+        path,
+        message,
+        (current) => {
+          const existing = current ? parseFormula(current) : null
+          const meta: FormulaMetadata = {
+            name: target.formula,
+            binary,
+            version,
+            desc,
+            homepage,
+            license,
+            kegOnly: target.kegOnly
+          }
+          return renderFormula(meta, mergeEntries(existing, version, updates))
+        }
+      )
+      core.info(`${path}: ${result}`)
+      written.push(path)
+      anyUpdated = anyUpdated || result === 'updated'
+    }
+
+    core.setOutput('formula', basePath)
+    core.setOutput('formulae', written.join('\n'))
     core.setOutput('version', version)
     core.setOutput('platforms', platformList)
-    core.setOutput('result', result)
+    core.setOutput('result', anyUpdated ? 'updated' : 'unchanged')
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message)

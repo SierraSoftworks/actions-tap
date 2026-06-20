@@ -82,6 +82,13 @@ inputs:
       Formula license (SPDX identifier). Defaults to the source repository's
       detected license.
 
+  aliases:
+    required: false
+    description: |
+      Versioned alias formulae to publish alongside the unversioned formula, as
+      a space/comma list of `major` and/or `minor`. For a 3.11.4 release,
+      `major minor` also writes `name@3` and `name@3.11` (both keg-only).
+
   formula-dir:
     required: false
     default: Formula
@@ -97,7 +104,10 @@ inputs:
 
 outputs:
   formula:
-    description: The path to the formula within the tap.
+    description: The path to the unversioned formula within the tap.
+  formulae:
+    description:
+      Newline-separated paths of every formula written (incl. aliases).
   version:
     description: The published version.
   platforms:

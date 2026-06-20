@@ -14,6 +14,16 @@ interface ExistingFile {
 
 const MAX_ATTEMPTS = 5
 
+/** Read a formula's current contents from the tap, or null if absent. */
+export async function readFormula(
+  octokit: Octokit,
+  tap: TapRepo,
+  path: string
+): Promise<string | null> {
+  const existing = await getExistingFile(octokit, tap, path)
+  return existing?.content ?? null
+}
+
 async function getExistingFile(
   octokit: Octokit,
   tap: TapRepo,
