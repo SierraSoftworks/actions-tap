@@ -87,6 +87,13 @@ inputs:
     default: Formula
     description: The directory within the tap that holds formulae.
 
+  github-token:
+    required: false
+    description: |
+      Token used to read the source repository's metadata (description,
+      homepage, license). Pass `${{ github.token }}` to avoid unauthenticated
+      rate limits. Defaults to the `GITHUB_TOKEN` environment variable if set.
+
 outputs:
   formula:
     description: The path to the formula within the tap.
@@ -98,5 +105,5 @@ outputs:
     description: Either `updated` or `unchanged`.
 
 runs:
-  using: node20
+  using: node24
   main: dist/index.js

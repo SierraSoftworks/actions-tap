@@ -88,11 +88,18 @@ export async function run(): Promise<void> {
       return
     }
 
-    const metadata = await resolveMetadata(source, name, {
-      desc: core.getInput('desc') || undefined,
-      homepage: core.getInput('homepage') || undefined,
-      license: core.getInput('license') || undefined
-    })
+    const githubToken =
+      core.getInput('github-token') || process.env.GITHUB_TOKEN || undefined
+    const metadata = await resolveMetadata(
+      source,
+      name,
+      {
+        desc: core.getInput('desc') || undefined,
+        homepage: core.getInput('homepage') || undefined,
+        license: core.getInput('license') || undefined
+      },
+      githubToken
+    )
 
     const meta: FormulaMetadata = {
       name,

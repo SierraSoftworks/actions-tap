@@ -19,25 +19,34 @@ interface RepoApiResponse {
  * GitHub metadata (description, homepage, license) and letting explicit inputs
  * override any field. The description is always sanitised for `brew audit`.
  *
- * Repositories are public, so metadata is read unauthenticated; failures fall
- * back to whatever overrides were supplied.
+ * The read is authenticated when a token is supplied (recommended — the
+ * unauthenticated API is rate-limited per runner IP and frequently returns 403).
  */
 export async function resolveMetadata(
   source: SourceRepo,
   name: string,
-  overrides: { desc?: string; homepage?: string; license?: string }
+  overrides: { desc?: string; homepage?: string; license?: string },
+  token?: string
 ): Promise<ResolvedMetadata> {
   let fetched: RepoApiResponse = {}
   try {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json'
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
     const response = await fetch(
       `https://api.github.com/repos/${source.owner}/${source.repo}`,
-      { headers: { Accept: 'application/vnd.github+json' } }
+      { headers }
     )
     if (response.ok) {
       fetched = (await response.json()) as RepoApiResponse
     } else {
       core.warning(
-        `Could not read ${source.owner}/${source.repo} metadata (${response.status}); relying on inputs.`
+        `Could not read ${source.owner}/${source.repo} metadata (${response.status})${
+          token ? '' : '; pass `github-token` to authenticate'
+        }.`
       )
     }
   } catch (error) {
@@ -48,8 +57,13 @@ export async function resolveMetadata(
     )
   }
 
-  const rawDesc = overrides.desc || fetched.description || name
-  const desc = sanitizeDesc(rawDesc, name)
+  const desc = sanitizeDesc(overrides.desc || fetched.description || '', name)
+  if (!desc) {
+    throw new Error(
+      `No usable description for ${name}. Pass \`github-token\` so the source ` +
+        'repository description can be read, or set the `desc` input explicitly.'
+    )
+  }
 
   const homepage =
     overrides.homepage ||
