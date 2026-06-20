@@ -1,0 +1,15 @@
+# Dependencies
+node_modules
+
+# Test/coverage output
+coverage
+*.lcov
+
+# Bundled action output — built and committed onto the release tag by
+# .github/workflows/release.yml, NOT onto main. See README "Releasing".
+dist
+
+# Logs / misc
+*.log
+.DS_Store
+.env

@@ -1,0 +1,54 @@
+name: Release
+
+# Builds the action bundle and attaches it to the release tag.
+#
+# `main` deliberately never contains `dist/` (it is gitignored). Instead, when a
+# release is published we build the bundle, commit it, and move the release tag
+# (e.g. `v1.2.3`) and the floating major tag (e.g. `v1`) onto that commit. This
+# keeps `main` source-only while `uses: SierraSoftworks/actions-tap@v1` still
+# resolves to runnable, bundled code.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set Node.js LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build bundle
+        run: npm run package
+
+      - name: Commit bundle and retarget tags
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          MAJOR="${TAG%%.*}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add --force dist
+          git commit --message "chore: bundle dist for ${TAG}" || echo "dist unchanged"
+
+          git tag --force "${TAG}"
+          git tag --force "${MAJOR}"
+          git push --force origin "refs/tags/${TAG}"
+          git push --force origin "refs/tags/${MAJOR}"

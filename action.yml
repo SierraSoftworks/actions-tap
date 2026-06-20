@@ -1,0 +1,102 @@
+name: Publish Homebrew Formula
+description: |
+  Publishes (or incrementally updates) a Homebrew formula in the Sierra
+  Softworks tap from a project's GitHub release artifacts.
+author: Sierra Softworks
+branding:
+  icon: package
+  color: gray-dark
+
+inputs:
+  app-id:
+    required: true
+    description: |
+      The ID of the GitHub App used to authenticate to the tap repository.
+      Usually provided via an organisation-level secret.
+
+  private-key:
+    required: true
+    description: |
+      The private key (PEM) of the GitHub App used to authenticate to the tap
+      repository. Usually provided via an organisation-level secret.
+
+  tap:
+    required: false
+    default: SierraSoftworks/homebrew-tap
+    description: The `owner/repo` of the Homebrew tap to publish into.
+
+  tap-branch:
+    required: false
+    description:
+      The branch of the tap to commit to (defaults to the default branch).
+
+  name:
+    required: false
+    description: |
+      The formula name (and default release-asset prefix). Defaults to the name
+      of the repository that triggered the workflow.
+
+  binary:
+    required: false
+    description: The installed binary name. Defaults to `name`.
+
+  repository:
+    required: false
+    description: |
+      The `owner/repo` whose release the artifacts come from. Defaults to the
+      repository running the workflow.
+
+  tag:
+    required: false
+    description: |
+      The release tag to publish. Defaults to the triggering release event or
+      the pushed tag ref. The formula version is the tag with any leading `v`
+      removed.
+
+  os:
+    required: false
+    description: |
+      When set together with `arch`, only this platform's block is updated — the
+      per-matrix-job mode. Non-Homebrew values (e.g. `windows`) are skipped.
+      When omitted, every supported platform is scanned.
+
+  arch:
+    required: false
+    description: The architecture (`amd64` or `arm64`) to update; see `os`.
+
+  desc:
+    required: false
+    description: |
+      Formula description. Defaults to the source repository's GitHub
+      description (sanitised for `brew audit`).
+
+  homepage:
+    required: false
+    description: |
+      Formula homepage. Defaults to the source repository's homepage, or its
+      GitHub URL.
+
+  license:
+    required: false
+    description: |
+      Formula license (SPDX identifier). Defaults to the source repository's
+      detected license.
+
+  formula-dir:
+    required: false
+    default: Formula
+    description: The directory within the tap that holds formulae.
+
+outputs:
+  formula:
+    description: The path to the formula within the tap.
+  version:
+    description: The published version.
+  platforms:
+    description: The platform blocks updated in this run.
+  result:
+    description: Either `updated` or `unchanged`.
+
+runs:
+  using: node20
+  main: dist/index.js
