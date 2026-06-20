@@ -25,7 +25,10 @@ convention `{app}-{os}-{arch}` (`os` ∈ `darwin`/`linux`, `arch` ∈
 By default the action runs **once, after all artifacts are uploaded**: it scans
 every supported platform, downloads whatever is published, and writes the
 complete formula in a single commit, so the tap never holds a partially-built
-formula. (An incremental per-platform mode is also available — see below.)
+formula. Because this scan is authoritative, platforms whose assets aren't
+published (a build that doesn't ship that target, or an asset later removed) are
+left out of the formula — and pruned from it if a previous run added them. (An
+incremental per-platform mode is also available — see below.)
 
 ## Usage
 

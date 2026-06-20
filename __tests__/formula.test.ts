@@ -147,7 +147,7 @@ describe('mergeEntries (incremental, idempotent)', () => {
         { url: `${base}/git-tool-linux-amd64`, sha256: 'b'.repeat(64) }
       ]
     ])
-    const merged = mergeEntries(existing, '3.9.8', update)
+    const merged = mergeEntries(existing, '3.9.8', update, false)
     expect(merged.size).toBe(4)
     expect(merged.get('linux-amd64')?.sha256).toBe('b'.repeat(64))
     expect(merged.get('darwin-arm64')?.sha256).toBe('a'.repeat(64))
@@ -156,21 +156,44 @@ describe('mergeEntries (incremental, idempotent)', () => {
   it('is idempotent: re-applying the same update yields the same result', () => {
     const existing = parseFormula(renderFormula(META, allEntries()))
     const update = new Map([['darwin-arm64', entry('darwin-arm64')]])
-    const merged = mergeEntries(existing, '3.9.8', update)
+    const merged = mergeEntries(existing, '3.9.8', update, false)
     expect(renderFormula(META, merged)).toBe(renderFormula(META, allEntries()))
   })
 
   it('resets stale platforms when the version changes', () => {
     const existing = parseFormula(renderFormula(META, allEntries()))
     const update = new Map([['darwin-arm64', entry('darwin-arm64')]])
-    const merged = mergeEntries(existing, '4.0.0', update)
+    const merged = mergeEntries(existing, '4.0.0', update, false)
     expect(merged.size).toBe(1)
     expect([...merged.keys()]).toEqual(['darwin-arm64'])
   })
 
   it('starts fresh when no formula exists yet', () => {
     const update = new Map([['darwin-arm64', entry('darwin-arm64')]])
-    const merged = mergeEntries(null, '3.9.8', update)
+    const merged = mergeEntries(null, '3.9.8', update, false)
     expect(merged.size).toBe(1)
+  })
+})
+
+describe('mergeEntries (authoritative full scan)', () => {
+  it('drops platforms whose assets the scan did not find', () => {
+    // A previous run published all four platforms; this run re-scanned every
+    // platform but the build no longer publishes the darwin-amd64 / linux-arm64
+    // assets, so they must not survive in the formula.
+    const existing = parseFormula(renderFormula(META, allEntries()))
+    const update = new Map([
+      ['darwin-arm64', entry('darwin-arm64')],
+      ['linux-amd64', entry('linux-amd64')]
+    ])
+    const merged = mergeEntries(existing, '3.9.8', update, true)
+    expect([...merged.keys()].sort()).toEqual(['darwin-arm64', 'linux-amd64'])
+  })
+
+  it('ignores existing entries entirely, using only the scanned assets', () => {
+    const existing = parseFormula(renderFormula(META, allEntries()))
+    const update = new Map([['darwin-arm64', entry('darwin-arm64')]])
+    const merged = mergeEntries(existing, '3.9.8', update, true)
+    expect(merged.size).toBe(1)
+    expect([...merged.keys()]).toEqual(['darwin-arm64'])
   })
 })

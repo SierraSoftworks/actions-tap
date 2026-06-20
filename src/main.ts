@@ -63,18 +63,26 @@ function parseRepo(slug: string): { owner: string; repo: string } {
   return { owner, repo }
 }
 
+interface ResolvedTargets {
+  platforms: Platform[]
+  // True when we scanned every supported platform, so the resolved entries are a
+  // complete, authoritative picture of the release's assets — platforms we don't
+  // find are genuinely absent and must be pruned from the formula.
+  fullScan: boolean
+}
+
 /**
  * Determine which platforms this invocation should resolve. When `os`/`arch`
  * inputs are given we target exactly that platform (the per-matrix-job mode);
  * otherwise we scan every supported platform and pick up whatever is present.
  * Returns null to signal an intentional no-op (e.g. a Windows matrix job).
  */
-function resolveTargets(): Platform[] | null {
+function resolveTargets(): ResolvedTargets | null {
   const os = core.getInput('os').trim().toLowerCase()
   const arch = core.getInput('arch').trim().toLowerCase()
 
   if (!os && !arch) {
-    return [...ALL_PLATFORMS]
+    return { platforms: [...ALL_PLATFORMS], fullScan: true }
   }
   if (!os || !arch) {
     throw new Error('Both `os` and `arch` must be provided together.')
@@ -86,7 +94,7 @@ function resolveTargets(): Platform[] | null {
   if (arch !== 'amd64' && arch !== 'arm64') {
     throw new Error(`Unsupported arch "${arch}"; expected amd64 or arm64.`)
   }
-  return [{ os: os as Os, arch: arch as Arch }]
+  return { platforms: [{ os: os as Os, arch: arch as Arch }], fullScan: false }
 }
 
 export async function run(): Promise<void> {
@@ -109,10 +117,11 @@ export async function run(): Promise<void> {
       `Publishing ${name} ${version} (tag ${tag}) from ${source.owner}/${source.repo}`
     )
 
-    const platformTargets = resolveTargets()
-    if (platformTargets === null) {
+    const resolved = resolveTargets()
+    if (resolved === null) {
       return
     }
+    const { platforms: platformTargets, fullScan } = resolved
 
     const updates = new Map<string, PlatformEntry>()
     for (const platform of platformTargets) {
@@ -200,7 +209,10 @@ export async function run(): Promise<void> {
             license,
             kegOnly: target.kegOnly
           }
-          return renderFormula(meta, mergeEntries(existing, version, updates))
+          return renderFormula(
+            meta,
+            mergeEntries(existing, version, updates, fullScan)
+          )
         }
       )
       core.info(`${path}: ${result}`)
