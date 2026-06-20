@@ -100,17 +100,25 @@ export function parseFormula(content: string): ParsedFormula {
 
 /**
  * Merge freshly-resolved platform entries into whatever the tap currently holds.
- * If the existing formula is for the same version we keep its other platforms;
- * if the version changed (a new release) we start fresh so stale checksums never
- * linger. This run's entries always win for the platforms it covers.
+ *
+ * When `authoritative` is true the caller scanned every supported platform, so
+ * `updates` is the complete set of assets the release actually publishes: we
+ * never carry existing entries over, which prunes platforms whose assets are no
+ * longer published (a removed asset, or one the build simply never produced).
+ *
+ * In the incremental per-platform mode (`authoritative` false) we only resolved
+ * a single platform, so we preserve the existing formula's other platforms when
+ * the version is unchanged; a version change starts fresh so stale checksums
+ * never linger. Either way this run's entries win for the platforms it covers.
  */
 export function mergeEntries(
   existing: ParsedFormula | null,
   targetVersion: string,
-  updates: Map<string, PlatformEntry>
+  updates: Map<string, PlatformEntry>,
+  authoritative: boolean
 ): Map<string, PlatformEntry> {
   const merged = new Map<string, PlatformEntry>()
-  if (existing && existing.version === targetVersion) {
+  if (!authoritative && existing && existing.version === targetVersion) {
     for (const [key, value] of existing.entries) {
       merged.set(key, value)
     }
