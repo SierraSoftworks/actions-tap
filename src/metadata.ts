@@ -3,7 +3,7 @@ import { sanitizeDesc } from './formula.js'
 import type { SourceRepo } from './assets.js'
 
 export interface ResolvedMetadata {
-  desc: string
+  desc?: string
   homepage?: string
   license?: string
 }
@@ -57,18 +57,10 @@ export async function resolveMetadata(
     )
   }
 
-  const desc = sanitizeDesc(overrides.desc || fetched.description || '', name)
-  if (!desc) {
-    throw new Error(
-      `No usable description for ${name}. Pass \`github-token\` so the source ` +
-        'repository description can be read, or set the `desc` input explicitly.'
-    )
-  }
+  const rawDesc = overrides.desc || fetched.description || ''
+  const desc = rawDesc ? sanitizeDesc(rawDesc, name) : undefined
 
-  const homepage =
-    overrides.homepage ||
-    fetched.homepage ||
-    `https://github.com/${source.owner}/${source.repo}`
+  const homepage = overrides.homepage || fetched.homepage || undefined
 
   const spdx = fetched.license?.spdx_id
   const license =

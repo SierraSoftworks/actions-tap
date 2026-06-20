@@ -93,6 +93,9 @@ describe('renderFormula / parseFormula round-trip', () => {
 
     const parsed = parseFormula(rendered)
     expect(parsed.version).toBe('3.9.8')
+    expect(parsed.desc).toBe(META.desc)
+    expect(parsed.homepage).toBe(META.homepage)
+    expect(parsed.license).toBe('MIT')
     expect(parsed.entries.size).toBe(4)
     expect(parsed.entries.get('darwin-arm64')?.url).toBe(
       `${base}/git-tool-darwin-arm64`

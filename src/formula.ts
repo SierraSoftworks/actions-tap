@@ -17,6 +17,9 @@ export interface PlatformEntry {
 
 export interface ParsedFormula {
   version?: string
+  desc?: string
+  homepage?: string
+  license?: string
   entries: Map<string, PlatformEntry>
 }
 
@@ -75,6 +78,9 @@ export function sanitizeDesc(desc: string, name?: string): string {
  */
 export function parseFormula(content: string): ParsedFormula {
   const version = content.match(/^\s*version\s+"([^"]+)"/m)?.[1]
+  const desc = content.match(/^\s*desc\s+"([^"]+)"/m)?.[1]
+  const homepage = content.match(/^\s*homepage\s+"([^"]+)"/m)?.[1]
+  const license = content.match(/^\s*license\s+"([^"]+)"/m)?.[1]
 
   const entries = new Map<string, PlatformEntry>()
   const re =
@@ -86,7 +92,7 @@ export function parseFormula(content: string): ParsedFormula {
     }
   }
 
-  return { version, entries }
+  return { version, desc, homepage, license, entries }
 }
 
 /**

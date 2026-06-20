@@ -101,15 +101,6 @@ export async function run(): Promise<void> {
       githubToken
     )
 
-    const meta: FormulaMetadata = {
-      name,
-      binary,
-      version,
-      desc: metadata.desc,
-      homepage: metadata.homepage,
-      license: metadata.license
-    }
-
     const tap: TapRepo = {
       ...parseRepo(core.getInput('tap') || 'SierraSoftworks/homebrew-tap'),
       branch: core.getInput('tap-branch') || undefined
@@ -132,6 +123,29 @@ export async function run(): Promise<void> {
       message,
       (current) => {
         const existing = current ? parseFormula(current) : null
+
+        // Prefer freshly-resolved metadata, but fall back to whatever the tap
+        // already records so an unavailable metadata read (e.g. a rate-limited
+        // 403) never blocks an otherwise-valid update.
+        const desc = metadata.desc || existing?.desc
+        if (!desc) {
+          throw new Error(
+            `No usable description for ${name}. Pass \`github-token\` so the ` +
+              'source repository description can be read, or set `desc`.'
+          )
+        }
+        const meta: FormulaMetadata = {
+          name,
+          binary,
+          version,
+          desc,
+          homepage:
+            metadata.homepage ||
+            existing?.homepage ||
+            `https://github.com/${source.owner}/${source.repo}`,
+          license: metadata.license || existing?.license
+        }
+
         const merged = mergeEntries(existing, version, updates)
         return renderFormula(meta, merged)
       }
