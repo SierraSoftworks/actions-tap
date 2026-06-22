@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { GitHub } from '@actions/github/lib/utils.js'
+import { GitHub } from '@actions/github/lib/utils'
 import { createAppAuth } from '@octokit/auth-app'
 import { createPrivateKey } from 'crypto'
 
