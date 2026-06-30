@@ -48,7 +48,7 @@
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.0.5",
-    "prettier": "^3.9.3",
+    "prettier": "^3.9.4",
     "rollup": "^4.52.5",
     "ts-jest": "^29.4.1",
     "ts-jest-resolver": "^2.0.1",
