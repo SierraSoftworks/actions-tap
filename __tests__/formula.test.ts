@@ -5,8 +5,8 @@ import {
   parseFormula,
   mergeEntries,
   renderFormula
-} from '../src/formula'
-import type { FormulaMetadata, PlatformEntry } from '../src/formula'
+} from '../src/formula.js'
+import type { FormulaMetadata, PlatformEntry } from '../src/formula.js'
 
 const META: FormulaMetadata = {
   name: 'git-tool',
