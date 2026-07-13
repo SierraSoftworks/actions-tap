@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals'
-import { versionFromTag, versionSeries } from '../src/version'
+import { versionFromTag, versionSeries } from '../src/version.js'
 
 describe('versionFromTag', () => {
   it('strips a leading v', () => {

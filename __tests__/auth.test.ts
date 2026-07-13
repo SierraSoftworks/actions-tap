@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals'
 import { generateKeyPairSync } from 'crypto'
-import { toPkcs8 } from '../src/auth'
+import { toPkcs8 } from '../src/auth.js'
 
 describe('toPkcs8', () => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
